@@ -1,7 +1,7 @@
 
 # Welcome to your CDK Python project!
 
-This is a CDK project with Python generates the AWS stack corresponding to the Third Party Marketplace guidance.
+This CDK project with Python generates the AWS stack corresponding to the Third Party Marketplace guidance.
 
 The `cdk.json` file tells the CDK Toolkit how to execute your app.
 
