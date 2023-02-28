@@ -105,7 +105,7 @@ class ThirdPartyMarketPlaceStack(Stack):
             definition = json.load(f)
         definition = json.dumps(definition, indent = 4)
 
-        my_step = step_function.CfnStateMachine(self, "state_machine", definition_string=definition,role_arn=step_role.role_arn)
+        my_step = step_function.CfnStateMachine(self, "validate_data", definition_string=definition,role_arn=step_role.role_arn)
 
         # 5.c. IAM role for eventbridge pipes
         pipe_role = iam.Role(self, "pipe_role",
