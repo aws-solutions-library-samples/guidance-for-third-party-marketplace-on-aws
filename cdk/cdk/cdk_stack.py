@@ -6,6 +6,7 @@ from aws_cdk import (
     aws_s3 as s3,
     aws_s3_deployment as s3deploy,
     aws_apigateway as api,
+    aws_wafv2 as wafv2,
     aws_lambda_event_sources as lambda_events,
     aws_iam as iam,
     aws_stepfunctions as step_function,
@@ -55,7 +56,6 @@ class ThirdPartyMarketPlaceStack(Stack):
             description="api_role"
         )
 
-
         ## API - Gateway
         third_party_api = api.LambdaRestApi(self, "suppliers-api", 
             handler=my_lambda,
@@ -64,6 +64,20 @@ class ThirdPartyMarketPlaceStack(Stack):
                  allow_methods=api.Cors.ALL_METHODS,
                  allow_headers=api.Cors.DEFAULT_HEADERS
             ))
+        
+        ## Enabling web access firewall to protect API Gateway
+        web_acl = wafv2.CfnWebACL(self, "suppliers-webacl", default_action=wafv2.CfnWebACL.DefaultActionProperty(allow={}),
+                                  scope="REGIONAL", 
+                                  visibility_config=wafv2.CfnWebACL.VisibilityConfigProperty(cloud_watch_metrics_enabled=True, 
+                                        metric_name="suppliers-web-acl",sampled_requests_enabled=False))                                                                                                        
+
+#                                         ,wafv2.CfnWebACL.ManagedRuleGroupStatementProperty.name = "AWSManagedRulesCommonRuleSet"
+#                                         ,wafv2.CfnWebACL.RuleProperty.statement = ; ,wafv2.CfnWebACL.RuleProperty.name="CRSRule"
+#                                  rules=[wafv2.CfnWebACL.AWSManagedRulesBotControlRuleSetProperty]
+
+        web_acl_association = wafv2.CfnWebACLAssociation(self,'bot-waf-association',
+                                resource_arn=third_party_api.deployment_stage.stage_arn,
+                                web_acl_arn=web_acl.attr_arn)
 
         ## Step 4 - website to enroll new suppliers
         mys3 = s3.Bucket(self, "third-party-marketplace-bucket",
