@@ -25,19 +25,22 @@
 
     <script type="text/javascript">
         // define the callAPI function that takes a first name and last name as parameters
-        var callAPI = (brandName, brandUrl, firstName, lastName, email, phoneNumber, roleName, imageStandardYes, imageStandardNo)=>{
+        var callAPI = (brandId, legalName, dbaName, brandUrl, registrantName, email, phoneNumber, roleName, imageStandard)=>{
             // instantiate a headers object
             var myHeaders = new Headers();
             // add content type header to object
             myHeaders.append("Content-Type", "application/json");
             // using built in JSON utility package turn object to string and store in a variable
 
+            window.alert(imageStandard)
+            image = false
             //Sending one value for radio button - imageStandard
-            var imageStandard = false
-            if(imageStandardYes){
-                imageStandard =true
+            if(imageStandard){
+                image =true
             }
-            var raw = JSON.stringify({"firstName":firstName,"lastName":lastName, "brandName":brandName, "brandUrl":brandUrl, "email":email, "phoneNumber":phoneNumber, "roleName":roleName, "imageStandard":imageStandard});
+            var raw = JSON.stringify({ "brandId":brandId, "legalName":legalName, "dbaName":dbaName,
+             "brandUrl":brandUrl, "registrantName":registrantName, "email":email, "phoneNumber":phoneNumber, "roleName":roleName,
+             "imageStandard":image, "newEntry":true});
             // create a JSON object with parameters for API call and store in a variable
             var requestOptions = {
                 method: 'POST',
@@ -46,7 +49,7 @@
                 redirect: 'follow'
             };
             // make API call with parameters and use promises to get response
-            var API_GATEWAY_URL = "https://ygem2y7z6j.execute-api.us-east-1.amazonaws.com/prod"
+            var API_GATEWAY_URL = "https://sdkgyqaqef.execute-api.us-east-1.amazonaws.com/prod/"
             fetch(API_GATEWAY_URL+"", requestOptions)
             .then(response => response.text())
             .then(result => alert(JSON.parse(result).body))
@@ -60,18 +63,25 @@
     <p> Welcome to third party market place, where you can reach millions of our customers. Apply below to enroll as a dropship seller. We will review your application and contact you regarding whether your brand meets our criteria. </p>
     
     <form>
-        <label>Brand Name :</label> <br>
-        <input type="text" id="brandName"> <br>
+        <br>
+        <label>Brand's Federal Registration Number :</label> <br>
+        <input type="text" id="brandId"> <br>
+
+        <label>Brand's Legal Entity Name :</label> <br>
+        <input type="text" id="legalName"> <br>
+                   
+        <label>Brand's Doing Business As Name :</label> <br>
+        <input type="text" id="dbaName"> <br>
 
         <label>Brand Website URL :</label> <br>
         <input type="text" id="brandUrl"> <br>
 
-        <label>First Name :</label> <br>
-        <input type="text" id="fName"> <br>
+        <br>
+        <label>Enter Registrant Details Below </label> <br>
 
-        <label>Last Name :</label> <br>
-        <input type="text" id="lName"> <br>
-        
+        <label>Registrant Name :</label> <br>
+        <input type="text" id="rName"> <br>
+
         <label>Email Address :</label> <br>
         <input type="text" id="email"> <br>
         
@@ -90,15 +100,15 @@
         <br>
         <!-- set button onClick method to call function we defined passing input values as parameters -->
         <button type="button" onclick="callAPI(
-            document.getElementById('brandName').value,
+            document.getElementById('brandId').value,
+            document.getElementById('legalName').value,
+            document.getElementById('dbaName').value,
             document.getElementById('brandUrl').value,
-            document.getElementById('fName').value,
-            document.getElementById('lName').value,
+            document.getElementById('rName').value,
             document.getElementById('email').value,
             document.getElementById('phoneNumber').value,
             document.getElementById('roleName').value,
-            document.getElementById('imageStandardYes').checked,
-            document.getElementById('imageStandardNo')).checked">Register as Supplier</button>
+            document.getElementById('imageStandardYes').checked)">Register as Supplier</button>
     </form>
 </body>
 </html>

@@ -10,7 +10,7 @@
     "All Entries": {
       "Comment": "For each of the entry we need the same function to be invoked",
       "Type": "Map",
-      "Next": "Hello World",
+      "Next": "Send Verification Email",
       "ItemProcessor": {
         "ProcessorConfig": {
           "Mode": "INLINE"
@@ -18,12 +18,69 @@
         "StartAt": "Check Entry",
         "States": {
            "Insert": {
-            "Type": "Pass",
-            "End":true
+            "Comment": "Will branch over each field and run data validity checks on them",
+            "Type": "Parallel",
+            "End":true,
+            "Branches":[
+              {
+                "StartAt":"Check BrandId",
+                "States":{
+                  "Check BrandId":{
+                    "Type": "Task",
+                    "Resource": "arn:aws:states:::sqs:sendMessage.waitForTaskToken",
+                    "Parameters": {
+                    "QueueUrl": "https://sqs.us-east-1.amazonaws.com/418493038188/ThirdPartyMarketplaceStack-needsmanualverificationD4FCFADF-FtEplRLRFHOA",
+                    "MessageBody": {
+                        "MessageTitle": "Task started by Step Functions. Waiting for callback with task token.",
+                        "TaskToken.$": "$$.Task.Token",
+                        "BrandId.$":"$.dynamodb.Keys.BrandId",
+                        "BrandLegalName.$":"$.dynamodb.NewImage.BrandLegalName",
+                        "SupplierStatus.$":"$.dynamodb.NewImage.SupplierStatus"
+                    }},
+                    "End": true
+                  }                  
+                }
+              },
+              {
+                "StartAt":"Check Image Requirement",
+                "States":{
+                  "Bad Images":{
+                    "Type": "Fail",
+                    "Cause": "Image Specification not valid"
+                  },
+                  "Images OK":{
+                    "Type":"Pass",
+                    "End":true
+                  },
+                  "Check Image Requirement":{
+                    "Type": "Choice",            
+                    "Choices": [
+                      {
+                        "Variable": "$.dynamodb.NewImage.ImageStandard.BOOL",
+                        "BooleanEquals": true,
+                        "Next": "Images OK"
+                      }
+                    ],
+                    "Default": "Bad Images"
+                  }
+                }
+              }
+            ],
+            "Catch":[
+              {
+                "ErrorEquals":["States.ALL"],
+                "Next":"Error Discovered During Data Validation"
+              }
+            ]   
             },
             "Delete": {
+              "Type": "Pass",
+              "Comment": "Do not have any triggers on Delete",
+              "End":true
+            },
+            "Error Discovered During Data Validation": {
               "Type": "Fail",
-              "Cause": "Not implemented Delete checks yet"
+              "Cause": "Error in validation data"
             },
             "Check Entry": {
             "Comment": "A Choice to see if the first entrys->eventName is INSERT Choice rules can implement 16 different comparison operators, and can be combined using And, Or, and Not",
@@ -48,11 +105,21 @@
             "Default": "Delete"
           }
         }
-      }      
-    },           
-    "Hello World": {
+      },
+      "Catch":[
+        {
+          "ErrorEquals":["States.ALL"],
+          "Next":"Need Programmer Attention"
+        }
+      ]      
+    },          
+    "Send Verification Email": {
       "Type": "Pass",
       "End": true
+    },
+    "Need Programmer Attention":{
+      "Type":"Fail",
+      "Cause":"Possible causes: deletion on table entry or invalid data; Make this a choice and redirect to manual review"
     }
   }
 }

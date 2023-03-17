@@ -7,12 +7,15 @@ from aws_cdk import (
     aws_s3_deployment as s3deploy,
     aws_apigateway as api,
     aws_wafv2 as wafv2,
-    aws_lambda_event_sources as lambda_events,
+    aws_lambda_event_sources as lambda_event_sources,
     aws_iam as iam,
-    aws_stepfunctions as step_function,
+    aws_stepfunctions as step_functions,
+    aws_codepipeline as code_pipelines, 
     aws_pipes as pipes,
     aws_cloudfront as cloudfront,
     aws_cloudfront_origins as cloudfront_origins,
+    aws_sns as sns,
+    aws_sqs as sqs,
     RemovalPolicy,
 )
 from constructs import Construct
@@ -27,19 +30,19 @@ class ThirdPartyMarketPlaceStack(Stack):
         # The code that defines your stack goes here
         supplier_table = ddb.Table(
              self, "Supplier",
-             partition_key = ddb.Attribute(name="Brand", type = ddb.AttributeType.STRING),
+             partition_key = ddb.Attribute(name="BrandId", type = ddb.AttributeType.STRING),
              stream = ddb.StreamViewType.NEW_IMAGE,
              removal_policy=RemovalPolicy.RETAIN
         )
 
         #Name of the registrant is the secondary/sort key
-        supplier_table.add_global_secondary_index(index_name="Name", 
-              partition_key=ddb.Attribute(name="Name", type = ddb.AttributeType.STRING))
+        supplier_table.add_global_secondary_index(index_name="SupplierStatus", 
+              partition_key=ddb.Attribute(name="SupplierStatus", type = ddb.AttributeType.STRING))
         
         ### STEP 2 - Lambda funtion that inserts values in SupplierTable ###
         
         my_lambda = lambda1.Function(self, "EnrollNewSupplier",
-            code=lambda1.Code.from_asset("./cdk/lambda"),
+            code=lambda1.Code.from_asset("./cdk/lambda/registration"),
             handler="index.lambda_handler",
             runtime= lambda1.Runtime.PYTHON_3_9,
             environment={"SUPPLIERS_TABLE_NAME":supplier_table.table_name})
@@ -106,20 +109,89 @@ class ThirdPartyMarketPlaceStack(Stack):
             allowed_methods=cloudfront.AllowedMethods.ALLOW_ALL,
             viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS))
         
-        ## Step 4 - Step function which gets triggered on dynamodb stream
+        ## Step 5 - Creating supporting resources for Step function
 
-        # 5.a. IAM role for step function
+        ## 5.a SNS topic for all notifications regarding subscriber registration
+        supplier_sns = sns.Topic(self, "supplier_notifications")
+
+        ## 5.b SQS for queueing manual tasks
+        manual_queue = sqs.Queue(self, "needs_manual_verification")
+
+        ## 5.c Lambda function that automatically checks if the business info is valid
+
+        lambda_role = iam.Role(self, "verify_supplier_role",
+            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
+            description="verify_supplier_role"
+        )
+
+        lambda_role.add_to_policy(statement=iam.PolicyStatement(                    
+                    actions=['states:SendTaskSuccess'],
+                        effect= iam.Effect.ALLOW,
+                        resources=["*"]
+                )
+        )
+
+        lambda_role.add_to_policy(statement=iam.PolicyStatement(                    
+                    actions=['logs:CreateLogGroup',
+                             'logs:CreateLogStream',
+                             'logs:PutLogEvents'],
+                        effect= iam.Effect.ALLOW,
+                        resources=["*"]
+                )
+        )
+        #TODO: change resource to just the one step function
+
+        supplier_verification_lambda = lambda1.Function(self, "VerifySupplier",
+            function_name="VerifySupplier",
+            role=lambda_role,
+            code=lambda1.Code.from_asset("./cdk/lambda/verification"),
+            handler="validate_brand.lambda_handler",
+            runtime= lambda1.Runtime.PYTHON_3_9,
+            environment={"SUPPLIERS_TABLE_NAME":supplier_table.table_name})
+
+        supplier_table.grant_read_write_data(supplier_verification_lambda) 
+
+        ## Step 6 - Step function which gets triggered on dynamodb stream
+
+        # 6.a. IAM role for step function
         step_role = iam.Role(self, "step_role",
             assumed_by=iam.ServicePrincipal("states.amazonaws.com"),
             description="step_role"
         )
 
-        # 5.b. reading step function definition
+        
+        # 6.b. reading step function definition
         with open('./cdk/step/step_definition.json') as f:
             definition = json.load(f)
         definition = json.dumps(definition, indent = 4)
 
-        my_step = step_function.CfnStateMachine(self, "validate_data", definition_string=definition,role_arn=step_role.role_arn)
+        my_step = step_functions.CfnStateMachine(self, "validate_data", 
+                                                 definition_string=definition,role_arn=step_role.role_arn)
+
+
+        #supplier_verification_lambda.add_permission("PermitStepFunctionInvocation",
+        ##                                            principal= iam.ServicePrincipal("states.amazonaws.com"),
+        #                                            source_arn=my_step.ref)
+        
+        step_role.add_to_policy(statement=iam.PolicyStatement(                    
+                    actions=['lambda:InvokeAsync', 'lambda:InvokeFunction'],
+                        effect= iam.Effect.ALLOW,
+                        resources=[supplier_verification_lambda.function_arn]
+                )
+        )
+
+        step_role.add_to_policy(statement=iam.PolicyStatement(                    
+                    actions=['sqs:*'],
+                        effect= iam.Effect.ALLOW,
+                        resources=["*"]
+                )
+        )
+
+        # supplier_verification_lambda will be triggered by SQS events
+        verify_lambda_source_sqs = lambda_event_sources.SqsEventSource(manual_queue)
+        supplier_verification_lambda.add_event_source(verify_lambda_source_sqs)
+    
+    #todo fix the star above to the actual resource arn
 
         # 5.c. IAM role for eventbridge pipes
         pipe_role = iam.Role(self, "pipe_role",
