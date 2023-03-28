@@ -1,6 +1,8 @@
 from aws_cdk import (
     # Duration,
     Stack,
+    CfnOutput,
+    Aws,
     aws_dynamodb as ddb,
     aws_lambda as lambda1,
     aws_s3 as s3,
@@ -14,6 +16,9 @@ from aws_cdk import (
     aws_pipes as pipes,
     aws_cloudfront as cloudfront,
     aws_cloudfront_origins as cloudfront_origins,
+    aws_route53 as route53,
+    aws_route53_targets as route53_targets,
+    aws_certificatemanager as acm,
     aws_sns as sns,
     aws_sqs as sqs,
     RemovalPolicy,
@@ -21,13 +26,14 @@ from aws_cdk import (
 from constructs import Construct
 
 import json
+import os
 
-class ThirdPartyMarketPlaceStack(Stack):
+class ThirdPartyMarketplaceStack(Stack):
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
-        super().__init__(scope, construct_id, **kwargs)
+        super().__init__(scope, construct_id, **kwargs)        
 
-        # The code that defines your stack goes here
+        # DynamoDB table
         supplier_table = ddb.Table(
              self, "Supplier",
              partition_key = ddb.Attribute(name="BrandId", type = ddb.AttributeType.STRING),
@@ -47,10 +53,6 @@ class ThirdPartyMarketPlaceStack(Stack):
             runtime= lambda1.Runtime.PYTHON_3_9,
             environment={"SUPPLIERS_TABLE_NAME":supplier_table.table_name})
 
-        # my_lambda.add_event_source(lambda_events.DynamoEventSource(supplier_table, 
-         #starting_position= lambda.StartingPosition.TRIM_HORIZON))
-        
-        #supplier_table.grant_full_access(my_lambda)
         supplier_table.grant_read_write_data(my_lambda)
         
         ### Step 3 - API Gateway
@@ -59,16 +61,42 @@ class ThirdPartyMarketPlaceStack(Stack):
             description="api_role"
         )
 
+         ## Creating a stable API endpoint proxy for UI to access
+
+        #root_domain = 'thirdpartymarketplace.com'
+        #sub_domain='supplier-registration-api'
+
+        #hosted_zone = route53.HostedZone(self,id='ThirdPartyHostedZone', zone_name=root_domain)
+        
+        #cert = acm.Certificate(self,id='cert',domain_name=sub_domain+"."+root_domain,
+        #                       validation=acm.CertificateValidation.from_dns(hosted_zone))
+        
+        #domain = api.DomainName(self,'ThirdPartyDomainName',
+        #                        certificate=cert,
+        #                        domain_name=sub_domain+"."+root_domain)
+        
         ## API - Gateway
-        third_party_api = api.LambdaRestApi(self, "suppliers-api", 
+        third_party_api = api.LambdaRestApi(
+            self, "suppliers-api", 
             handler=my_lambda,
+            #domain_name=api.DomainNameOptions(
+            #    domain_name=root_domain,
+            #    certificate=cert),
+            endpoint_types=[api.EndpointType.REGIONAL],
             default_cors_preflight_options=api.CorsOptions(
                  allow_origins=api.Cors.ALL_ORIGINS,
                  allow_methods=api.Cors.ALL_METHODS,
                  allow_headers=api.Cors.DEFAULT_HEADERS
             ))
         
-        ## Enabling web access firewall to protect API Gateway
+
+        #route53_record = route53.ARecord(self, 'ThirdPartyDNS', 
+        #                                 zone= hosted_zone,
+        #                                 record_name=sub_domain,
+        #                                 target=route53.RecordTarget.from_alias(route53_targets.ApiGateway(third_party_api)))
+
+        
+        ## Step 4 - Enabling web access firewall to protect API Gateway
         web_acl = wafv2.CfnWebACL(self, "suppliers-webacl", default_action=wafv2.CfnWebACL.DefaultActionProperty(allow={}),
                                   scope="REGIONAL", 
                                   visibility_config=wafv2.CfnWebACL.VisibilityConfigProperty(cloud_watch_metrics_enabled=True, 
@@ -81,33 +109,12 @@ class ThirdPartyMarketPlaceStack(Stack):
         web_acl_association = wafv2.CfnWebACLAssociation(self,'bot-waf-association',
                                 resource_arn=third_party_api.deployment_stage.stage_arn,
                                 web_acl_arn=web_acl.attr_arn)
-
-        ## Step 4 - website to enroll new suppliers
-        mys3 = s3.Bucket(self, "third-party-marketplace-bucket",
-        removal_policy=RemovalPolicy.DESTROY)
-
-        mydep = s3deploy.BucketDeployment(self, "deployThirdParty",
-            sources=[s3deploy.Source.asset("./cdk/website")],
-            destination_bucket=mys3
-            #destination_key_prefix="web/static"
-            )
-
-        origin_access_identity_1 = cloudfront.OriginAccessIdentity(self,'OriginAccessIdentity')
         
-        mys3.grant_read(origin_access_identity_1)
-
-        #cloudfront_distribution = cloudfront.Distribution(self, 'Suppliers_Distribution',
-         #   default_root_object='index.html',
-         #   default_behavior={'origin': cloudfront_origins.HttpOrigin(
-          #      domain_name= mydep.deployed_bucket.bucket_website_domain_name)})
-
-        cloudfront_distribution = cloudfront.Distribution(self, 'Suppliers_Distribution',
-            default_root_object='index.html',
-            default_behavior=cloudfront.BehaviorOptions
-            (origin= cloudfront_origins.S3Origin(bucket=mys3,
-            origin_access_identity=origin_access_identity_1),
-            allowed_methods=cloudfront.AllowedMethods.ALLOW_ALL,
-            viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS))
+        
+        # Saving the api end point as an output that will be used by the front end stack
+        CfnOutput(self, "Suppliers API Endpoint", export_name="api-end-point",
+                  value=f"https://{third_party_api.rest_api_id}.execute-api.{Aws.REGION}.amazonaws.com/prod/"
+                )
         
         ## Step 5 - Creating supporting resources for Step function
 
@@ -115,7 +122,8 @@ class ThirdPartyMarketPlaceStack(Stack):
         supplier_sns = sns.Topic(self, "supplier_notifications")
 
         ## 5.b SQS for queueing manual tasks
-        manual_queue = sqs.Queue(self, "needs_manual_verification")
+        manual_queue = sqs.Queue(self, "needs_manual_verification",
+                                 queue_name="ThirdParty-Manual-Verification")
 
         ## 5.c Lambda function that automatically checks if the business info is valid
 
@@ -139,7 +147,7 @@ class ThirdPartyMarketPlaceStack(Stack):
                         resources=["*"]
                 )
         )
-        #TODO: change resource to just the one step function
+        
 
         supplier_verification_lambda = lambda1.Function(self, "VerifySupplier",
             function_name="VerifySupplier",
@@ -161,8 +169,10 @@ class ThirdPartyMarketPlaceStack(Stack):
 
         
         # 6.b. reading step function definition
-        with open('./cdk/step/step_definition.json') as f:
-            definition = json.load(f)
+        content_str = open('./cdk/step/step_definition.json').read()
+        content_str = content_str.replace("$$$ACCOUNT_ID$$$",self.account)
+        #with open('./cdk/step/step_definition.json') as f:
+        definition = json.loads(content_str)
         definition = json.dumps(definition, indent = 4)
 
         my_step = step_functions.CfnStateMachine(self, "validate_data", 

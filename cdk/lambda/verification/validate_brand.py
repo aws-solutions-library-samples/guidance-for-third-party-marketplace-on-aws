@@ -64,11 +64,11 @@ def lambda_handler(event, context):
                 'BrandId' : brand_id
                 }, ProjectionExpression = "SupplierStatus")
             item = read_brand_status['Item']
-            logger.info(item)
-            new_status = item["SupplierStatus"]
-            logger.info('status of '+ brand_id + ' is ' + new_status)
-            time.sleep(30)
+            #logger.info(item)
+            new_status = item["SupplierStatus"]            
+            time.sleep(2)
         
+        logger.info('status of '+ brand_id + ' is ' + new_status)
         #then send the new status as the message
         if new_status == 'Supplier' :
             step_functions.send_task_success(

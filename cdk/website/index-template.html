@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Supplier Information</title>
+    <link rel="shortcut icon" href="#" />
     <!-- Add some CSS to change client UI -->
     <style>
     body {
@@ -49,7 +50,7 @@
                 redirect: 'follow'
             };
             // make API call with parameters and use promises to get response
-            var API_GATEWAY_URL = "https://sdkgyqaqef.execute-api.us-east-1.amazonaws.com/prod/"
+            var API_GATEWAY_URL = $$API_URL$$
             fetch(API_GATEWAY_URL+"", requestOptions)
             .then(response => response.text())
             .then(result => alert(JSON.parse(result).body))

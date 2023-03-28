@@ -29,7 +29,7 @@
                     "Type": "Task",
                     "Resource": "arn:aws:states:::sqs:sendMessage.waitForTaskToken",
                     "Parameters": {
-                    "QueueUrl": "https://sqs.us-east-1.amazonaws.com/418493038188/ThirdPartyMarketplaceStack-needsmanualverificationD4FCFADF-FtEplRLRFHOA",
+                    "QueueUrl": "https://sqs.us-east-1.amazonaws.com/$$$ACCOUNT_ID$$$/ThirdParty-Manual-Verification",
                     "MessageBody": {
                         "MessageTitle": "Task started by Step Functions. Waiting for callback with task token.",
                         "TaskToken.$": "$$.Task.Token",
