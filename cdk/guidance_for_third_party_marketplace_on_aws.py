@@ -5,21 +5,13 @@ from aws_cdk import (
     Aws,
     aws_dynamodb as ddb,
     aws_lambda as lambda1,
-    aws_s3 as s3,
-    aws_s3_deployment as s3deploy,
     aws_apigateway as api,
     aws_wafv2 as wafv2,
+    aws_logs as logs,
     aws_lambda_event_sources as lambda_event_sources,
     aws_iam as iam,
     aws_stepfunctions as step_functions,
-    aws_codepipeline as code_pipelines, 
     aws_pipes as pipes,
-    aws_cloudfront as cloudfront,
-    aws_cloudfront_origins as cloudfront_origins,
-    aws_route53 as route53,
-    aws_route53_targets as route53_targets,
-    aws_certificatemanager as acm,
-    aws_sns as sns,
     aws_sqs as sqs,
     RemovalPolicy,
 )
@@ -37,6 +29,7 @@ class ThirdPartyMarketplaceStack(Stack):
         supplier_table = ddb.Table(
              self, "Supplier",
              partition_key = ddb.Attribute(name="BrandId", type = ddb.AttributeType.STRING),
+             point_in_time_recovery=True,
              stream = ddb.StreamViewType.NEW_IMAGE,
              removal_policy=RemovalPolicy.RETAIN
         )
@@ -76,9 +69,23 @@ class ThirdPartyMarketplaceStack(Stack):
         #                        domain_name=sub_domain+"."+root_domain)
         
         ## API - Gateway
+        log_group = logs.LogGroup(self,"suppliers-api-access-log")
+
         third_party_api = api.LambdaRestApi(
             self, "suppliers-api", 
             handler=my_lambda,
+            deploy=True,
+            deploy_options=api.StageOptions(
+                logging_level=api.MethodLoggingLevel.INFO,
+                metrics_enabled=True,
+                access_log_destination=api.LogGroupLogDestination(log_group),
+                access_log_format=api.AccessLogFormat.custom(f"{api.AccessLogField.context_request_id()} \
+                    {api.AccessLogField.context_identity_source_ip()} \
+                    {api.AccessLogField.context_http_method()} \
+                    {api.AccessLogField.context_error_message()} \
+                    {api.AccessLogField.context_error_message_string()}"            
+                )
+            ),
             #domain_name=api.DomainNameOptions(
             #    domain_name=root_domain,
             #    certificate=cert),
@@ -89,12 +96,11 @@ class ThirdPartyMarketplaceStack(Stack):
                  allow_headers=api.Cors.DEFAULT_HEADERS
             ))
         
-
-        #route53_record = route53.ARecord(self, 'ThirdPartyDNS', 
-        #                                 zone= hosted_zone,
-        #                                 record_name=sub_domain,
-        #                                 target=route53.RecordTarget.from_alias(route53_targets.ApiGateway(third_party_api)))
-
+        third_party_api.add_request_validator(id="suppliers-api-request-validator",
+                                              request_validator_name="suppliers-api-request-validator",
+                                              validate_request_parameters=True,
+                                              validate_request_body=True)
+   
         
         ## Step 4 - Enabling web access firewall to protect API Gateway
         web_acl = wafv2.CfnWebACL(self, "suppliers-webacl", default_action=wafv2.CfnWebACL.DefaultActionProperty(allow={}),
@@ -118,14 +124,19 @@ class ThirdPartyMarketplaceStack(Stack):
         
         ## Step 5 - Creating supporting resources for Step function
 
-        ## 5.a SNS topic for all notifications regarding subscriber registration
-        supplier_sns = sns.Topic(self, "supplier_notifications")
 
-        ## 5.b SQS for queueing manual tasks
+        ## 5.a SQS for queueing manual tasks
+
+        manual_dlq = sqs.Queue(self,"manual_dlq", queue_name="ThirdParty-Manual-Verification-Dlq")
+
         manual_queue = sqs.Queue(self, "needs_manual_verification",
-                                 queue_name="ThirdParty-Manual-Verification")
+                                 queue_name="ThirdParty-Manual-Verification",
+                                 dead_letter_queue=sqs.DeadLetterQueue(max_receive_count=10,
+                                                                       queue=manual_dlq))
+        
+        
 
-        ## 5.c Lambda function that automatically checks if the business info is valid
+        ## 5.b Lambda function that automatically checks if the business info is valid
 
         lambda_role = iam.Role(self, "verify_supplier_role",
             assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
@@ -176,13 +187,11 @@ class ThirdPartyMarketplaceStack(Stack):
         definition = json.dumps(definition, indent = 4)
 
         my_step = step_functions.CfnStateMachine(self, "validate_data", 
-                                                 definition_string=definition,role_arn=step_role.role_arn)
+                        logging_configuration=step_functions.CfnStateMachine.LoggingConfigurationProperty(                
+                        level="ALL"),
+                    definition_string=definition,
+                    role_arn=step_role.role_arn)
 
-
-        #supplier_verification_lambda.add_permission("PermitStepFunctionInvocation",
-        ##                                            principal= iam.ServicePrincipal("states.amazonaws.com"),
-        #                                            source_arn=my_step.ref)
-        
         step_role.add_to_policy(statement=iam.PolicyStatement(                    
                     actions=['lambda:InvokeAsync', 'lambda:InvokeFunction'],
                         effect= iam.Effect.ALLOW,
