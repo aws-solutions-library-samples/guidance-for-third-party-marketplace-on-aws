@@ -37,11 +37,6 @@ class FrontEndStack(Stack):
         website_deploy_file.write(web_content)
         website_deploy_file.close()
 
-        s3_deployment_role = iam.Role(self, "s3_deployment_role",
-            assumed_by=iam.ServicePrincipal("apigateway.amazonaws.com"),
-            description="api_role"
-        )
-
         ## Step 3 - deploy website
         mydep = s3deploy.BucketDeployment(self, "deployThirdParty",
             sources=[s3deploy.Source.asset("./cdk/website/website-deploy")],
