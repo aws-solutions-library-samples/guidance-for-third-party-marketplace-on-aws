@@ -11,7 +11,7 @@ from cdk_nag import AwsSolutionsChecks
 from cdk_nag import NagSuppressions
 
 app = cdk.App()
-description = "Guidance for building Third Party Marketplace on AWS (S09XXX)"
+description = "Guidance for building Third Party Marketplace on AWS (SO9194)"
 third_party_marketplace_stack = ThirdPartyMarketplaceStack(app, "ThirdPartyMarketplaceStack", 
     description=description,
     env=cdk.Environment(account=os.getenv('CDK_DEFAULT_ACCOUNT'), region=os.getenv('CDK_DEFAULT_REGION')),
