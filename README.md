@@ -4,7 +4,7 @@ Retailers want to offer a wide range of products to their customers but can't ne
 
 ## Reference Architecture
 
-![Reference Architecture Image](/assets/images/referencearchitecture.svg)
+![Reference Architecture Image](/assets/images/third-party-marketplace-RA.png)
 
 ## Deployment
 
