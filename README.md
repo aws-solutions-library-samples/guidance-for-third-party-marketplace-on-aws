@@ -65,7 +65,7 @@ Capture the cloudfront end point displayed in the output
 
 1. Visit cloudfront end point
 
-![Supplier Registration Image](/assets/images/supplierregistration_website.svg)
+![Supplier Registration Image](/assets/images/supplierregistration_website.png)
 
 2. Enter supplier details
 
