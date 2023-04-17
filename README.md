@@ -8,8 +8,7 @@ Retailers want to offer a wide range of products to their customers but can't ne
 
 ## Deployment
 
-This repository has a CDK app with Python that generates the AWS stacks that
-correspond to the Third Party Marketplace guidance. 
+This repository has a CDK app with Python that generates the AWS stacks that correspond to the Third Party Marketplace guidance. 
 
 1. Clone the `main` repository
 ```
@@ -38,22 +37,16 @@ $ python3 -m pip install -r requirements.txt
 ```
 $ cdk ls
 ```
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;You should see 2 stacks `ThirdPartyMarketplaceStack` 
-and `FrontEndStack` 
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;You should see 2 stacks `ThirdPartyMarketplaceStack` and `FrontEndStack` 
 
-6. You will first need to deploy the `ThirdpartyMarketPlaceStack`. 
-This ThirdPartyMarketplaceStack creates an Amazon DynamoDB database that stores 
-third party suppliers information, an AWS Step Function that validates the 
-suppliers' information, and an Amazon API gateway that exposes APIs that allow for 
-new suppliers to be registered. 
+6. You will first need to deploy the `ThirdpartyMarketPlaceStack`. This ThirdPartyMarketplaceStack creates an Amazon DynamoDB database that stores third party suppliers information, an AWS Step Function that validates the suppliers' information, and an Amazon API gateway that exposes APIs that allow for new suppliers to be registered. 
 
 ```
 cdk deploy ThirdPartyMarketplaceStack
 ```
 The output displayed should include the API gateway end point. 
 
-7. You will deploy the `FrontEndStack` stack using the below command. You will need 
-to pass the API gateway end point from last step's output. 
+7. You will deploy the `FrontEndStack` stack using the below command which needs the API gateway end point from last step's output. The FrontEndStack creates a static S3 website that is served through an Amazon CloudFront endpoint.   
 
 ```
 cdk deploy FrontEndStack -c api-end-point=<API-GATEWAY-END-POINT>
@@ -67,17 +60,15 @@ Capture the cloudfront end point displayed in the output
 
 ![Supplier Registration Image](/assets/images/supplierregistration_website.png)
 
-2. Enter supplier details
+2. Enter supplier details in the form shown above
 
-3. Check dynamodb table to see the new entry reflected there
+3. Check DynamoDB table to see the new entry is reflected there
 
-4. The new dynamodb table entry creates a dynamodb stream, that
-triggers the following step function.
+4. The new DynamoDB table entry creates a DynamoDB stream entry, that triggers the following step function.
 
 ![Step Function Image](/assets/images/stepfunctions_graph.svg)
 
-5. Manually change the status of entry from "new supplier" to 
-"Supplier" causes the step function to sucessfully verify the entry
+5. Manually change the status of entry from "register_new_supplier" to "Supplier" which causes the step function to sucessfully verify the entry
 
 
 ## Cleanup
@@ -87,8 +78,7 @@ cdk destroy FrontEndStack
 cdk destroy ThirdPartyMarketplaceStack
 ```
 
-Note: Cloudwatch logs and S3 buckets may need to be removed manually 
-from the AWS console. 
+Note: Cloudwatch logs and S3 buckets may need to be removed manually from the AWS console. 
 
 ## Security
 
@@ -97,4 +87,3 @@ See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more inform
 ## License
 
 This library is licensed under the MIT-0 License. See the LICENSE file.
-
