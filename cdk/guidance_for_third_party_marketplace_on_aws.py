@@ -169,13 +169,13 @@ class ThirdPartyMarketplaceStack(Stack):
         definition = json.loads(content_str)
         definition = json.dumps(definition, indent = 4)
 
-        step_log_group = logs.LogGroup(self,"suppliers-step-function-access-log")
+        step_log_group = logs.LogGroup(self,"/aws/vendedlogs/validate_data")
 
         my_step = step_functions.CfnStateMachine(self, "validate_data", 
-                       #logging_configuration=step_functions.CfnStateMachine.LoggingConfigurationProperty(
-                        #destinations=[step_functions.CfnStateMachine.LogDestinationProperty(cloud_watch_logs_log_group =
-                        #              step_functions.CfnStateMachine.CloudWatchLogsLogGroupProperty(log_group_arn=step_log_group.log_group_arn))],
-                        #level="ALL"),
+                       logging_configuration=step_functions.CfnStateMachine.LoggingConfigurationProperty(
+                        destinations=[step_functions.CfnStateMachine.LogDestinationProperty(cloud_watch_logs_log_group =
+                                      step_functions.CfnStateMachine.CloudWatchLogsLogGroupProperty(log_group_arn=step_log_group.log_group_arn))],
+                        level="ALL"),
                     definition_string=definition,
                     role_arn=step_role.role_arn)
 
