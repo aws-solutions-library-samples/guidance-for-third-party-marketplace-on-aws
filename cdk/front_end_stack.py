@@ -27,6 +27,7 @@ class FrontEndStack(Stack):
         enforce_ssl=True,
         block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
         access_control=s3.BucketAccessControl.LOG_DELIVERY_WRITE,
+        object_ownership=s3.ObjectOwnership.OBJECT_WRITER,
         server_access_logs_prefix="web-access-logs")
 
         ## Step 2 - Insert api_end_point variable in website-template and create deployable webpage
@@ -41,18 +42,18 @@ class FrontEndStack(Stack):
         mydep = s3deploy.BucketDeployment(self, "deployThirdParty",
             sources=[s3deploy.Source.asset("./cdk/website/website-deploy")],
             destination_bucket=mys3
-            #destination_key_prefix="web/static"
             )
 
         origin_access_identity_1 = cloudfront.OriginAccessIdentity(self,'OriginAccessIdentity')
         
         mys3.grant_read(origin_access_identity_1)
 
-        ## Creating a bucket for clod front logs - cdk nag requirement
+        ## Creating a bucket for cloud front logs - cdk nag requirement
         cloudfront_log_s3 = s3.Bucket(self, "suppliers-distribution-cloudfront-log-bucket",
         enforce_ssl=True,
         block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
         access_control=s3.BucketAccessControl.LOG_DELIVERY_WRITE,
+        object_ownership=s3.ObjectOwnership.OBJECT_WRITER,
         server_access_logs_prefix="cloudfront-access-logs")
         
         cloudfront_distribution = cloudfront.Distribution(self, 'Suppliers_Distribution',
@@ -60,8 +61,8 @@ class FrontEndStack(Stack):
             log_bucket=cloudfront_log_s3,
             log_file_prefix="cloudfront-log",
             geo_restriction=cloudfront.GeoRestriction.allowlist("US","GB"),
-            #certificate=acm.Certificate,
-            #minimum_protocol_version=cloudfront.SecurityPolicyProtocol.TLS_V1_2_2018,            
+            #certificate=acm.Certificate,  - Best practice for production systems
+            #minimum_protocol_version=cloudfront.SecurityPolicyProtocol.TLS_V1_2_2018, - Best practice for production systems          
             default_behavior=cloudfront.BehaviorOptions
             (origin= cloudfront_origins.S3Origin(bucket=mys3,
             origin_access_identity=origin_access_identity_1),

@@ -22,20 +22,20 @@ python3 -m venv .venv
 
 3. After the virtualenv is created, you can use the following step to activate your virtualenv.
 ```
-$ source .venv/bin/activate
+source .venv/bin/activate
 ```
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;If you are a Windows platform, you would activate the virtualenv like this:
 ```
-% .venv\Scripts\activate.bat
+.venv\Scripts\activate.bat
 ```
 4. Once the virtualenv is activated, you can install the required dependencies.
 ```
-$ python3 -m pip install -r requirements.txt
+python3 -m pip install -r requirements.txt
 ```
 5. At this point you can view the available stacks to deploy using the command
 
 ```
-$ cdk ls
+cdk ls
 ```
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;You should see 2 stacks `ThirdPartyMarketplaceStack` and `FrontEndStack` 
 

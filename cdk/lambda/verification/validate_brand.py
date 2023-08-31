@@ -84,7 +84,7 @@ def lambda_handler(event, context):
     
 
 def does_match_brand_id_name(idval,name):
-    #TODO - create a mock gateway which can verify this information independently
+    # Production system can verify this information by calling independent sources
     brand_dict = {'911646860':'amazon com inc',
                   '611767919':'alphabet inc',
                   '12345':'our inc'

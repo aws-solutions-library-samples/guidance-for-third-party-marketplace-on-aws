@@ -53,21 +53,7 @@ class ThirdPartyMarketplaceStack(Stack):
             assumed_by=iam.ServicePrincipal("apigateway.amazonaws.com"),
             description="api_role"
         )
-
-         ## Creating a stable API endpoint proxy for UI to access
-
-        #root_domain = 'thirdpartymarketplace.com'
-        #sub_domain='supplier-registration-api'
-
-        #hosted_zone = route53.HostedZone(self,id='ThirdPartyHostedZone', zone_name=root_domain)
-        
-        #cert = acm.Certificate(self,id='cert',domain_name=sub_domain+"."+root_domain,
-        #                       validation=acm.CertificateValidation.from_dns(hosted_zone))
-        
-        #domain = api.DomainName(self,'ThirdPartyDomainName',
-        #                        certificate=cert,
-        #                        domain_name=sub_domain+"."+root_domain)
-        
+               
         ## API - Gateway
         log_group = logs.LogGroup(self,"suppliers-api-access-log")
 
@@ -108,9 +94,6 @@ class ThirdPartyMarketplaceStack(Stack):
                                   visibility_config=wafv2.CfnWebACL.VisibilityConfigProperty(cloud_watch_metrics_enabled=True, 
                                         metric_name="suppliers-web-acl",sampled_requests_enabled=False))                                                                                                        
 
-#                                         ,wafv2.CfnWebACL.ManagedRuleGroupStatementProperty.name = "AWSManagedRulesCommonRuleSet"
-#                                         ,wafv2.CfnWebACL.RuleProperty.statement = ; ,wafv2.CfnWebACL.RuleProperty.name="CRSRule"
-#                                  rules=[wafv2.CfnWebACL.AWSManagedRulesBotControlRuleSetProperty]
 
         web_acl_association = wafv2.CfnWebACLAssociation(self,'bot-waf-association',
                                 resource_arn=third_party_api.deployment_stage.stage_arn,
@@ -175,7 +158,7 @@ class ThirdPartyMarketplaceStack(Stack):
         # 6.a. IAM role for step function
         step_role = iam.Role(self, "step_role",
             assumed_by=iam.ServicePrincipal("states.amazonaws.com"),
-            description="step_role"
+            description="Custom step function role for Third Party Marketplace stack"
         )
 
         
@@ -186,9 +169,13 @@ class ThirdPartyMarketplaceStack(Stack):
         definition = json.loads(content_str)
         definition = json.dumps(definition, indent = 4)
 
+        step_log_group = logs.LogGroup(self,"suppliers-step-function-access-log")
+
         my_step = step_functions.CfnStateMachine(self, "validate_data", 
-                        logging_configuration=step_functions.CfnStateMachine.LoggingConfigurationProperty(                
-                        level="ALL"),
+                       #logging_configuration=step_functions.CfnStateMachine.LoggingConfigurationProperty(
+                        #destinations=[step_functions.CfnStateMachine.LogDestinationProperty(cloud_watch_logs_log_group =
+                        #              step_functions.CfnStateMachine.CloudWatchLogsLogGroupProperty(log_group_arn=step_log_group.log_group_arn))],
+                        #level="ALL"),
                     definition_string=definition,
                     role_arn=step_role.role_arn)
 
@@ -202,6 +189,13 @@ class ThirdPartyMarketplaceStack(Stack):
         step_role.add_to_policy(statement=iam.PolicyStatement(                    
                     actions=['sqs:*'],
                         effect= iam.Effect.ALLOW,
+                        resources=["*"] # Best practice to limit the resources by resource arn
+                )
+        )
+
+        step_role.add_to_policy(statement=iam.PolicyStatement(                    
+                    actions=['logs:*'],
+                        effect= iam.Effect.ALLOW,
                         resources=["*"]
                 )
         )
@@ -209,8 +203,7 @@ class ThirdPartyMarketplaceStack(Stack):
         # supplier_verification_lambda will be triggered by SQS events
         verify_lambda_source_sqs = lambda_event_sources.SqsEventSource(manual_queue)
         supplier_verification_lambda.add_event_source(verify_lambda_source_sqs)
-    
-    #todo fix the star above to the actual resource arn
+
 
         # 5.c. IAM role for eventbridge pipes
         pipe_role = iam.Role(self, "pipe_role",
@@ -219,7 +212,7 @@ class ThirdPartyMarketplaceStack(Stack):
         )
 
         pipe_role.add_to_policy(iam.PolicyStatement(effect=iam.Effect.ALLOW, actions=["states:*"], resources=[my_step.ref]))
-
+        
         supplier_table.grant_stream_read(pipe_role)
 
         # 5. d. connect dynamodb stream to pipe
