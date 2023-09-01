@@ -6,7 +6,18 @@ Retailers want to offer a wide range of products to their customers but can't ne
 
 ![Reference Architecture Image](/assets/images/third-party-marketplace-RA.png)
 
-## Deployment
+## Pre-requisites
+
+- python3 v3.9.x with venv package
+- Node
+- AWS CLI
+- AWS Account with CLI access
+- curl 7.82.0 or greater.
+  - A REST client like insomnia or postman can be used instead of curl
+
+More details about the pre-requisites to run the CDK app can be found in https://docs.aws.amazon.com/cdk/v2/guide/getting_started.html#getting_started_prerequisites
+
+## Deployment Steps
 
 This repository has a CDK app with Python that generates the AWS stacks that correspond to the Third Party Marketplace guidance. 
 
@@ -54,6 +65,12 @@ cdk deploy FrontEndStack -c api-end-point=<API-GATEWAY-END-POINT>
 
 Capture the cloudfront end point displayed in the output
 
+
+## Deployment Validation
+
+This repository has a CDK app with Python that generates two AWS stacks 1. ThirdPartyMarketplaceStack and 2. FrontEndStack which can be verified by visiting AWS CloudFormation Console. 
+
+
 ## Registering new suppliers to the third party marketplace
 
 1. Visit cloudfront end point
@@ -80,7 +97,7 @@ cdk destroy ThirdPartyMarketplaceStack
 
 Note: Cloudwatch logs and S3 buckets may need to be removed manually from the AWS console. 
 
-## Note
+## Usage Note
 
 The Authorization header set to "allow" is an authentication bypass mechanism used in sample code. This should be replaced with a secure API authentication method. More details can be found at https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-control-access-to-api.html
 
