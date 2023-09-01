@@ -80,6 +80,12 @@ cdk destroy ThirdPartyMarketplaceStack
 
 Note: Cloudwatch logs and S3 buckets may need to be removed manually from the AWS console. 
 
+## Note
+
+The Authorization header set to "allow" is an authentication bypass mechanism used in sample code. This should be replaced with a secure API authentication method. More details can be found at https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-control-access-to-api.html
+
+For information regarding securely handling Personal Identifiable Inforamtion (PII) see https://docs.aws.amazon.com/whitepapers/latest/logical-separation/encrypting-data-at-rest-and--in-transit.html and https://docs.aws.amazon.com/AmazonS3/latest/userguide/security-best-practices.html
+
 ## Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
