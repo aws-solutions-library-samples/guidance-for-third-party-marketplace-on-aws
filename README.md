@@ -1,8 +1,26 @@
-## Third-Party Marketplace Solutions for Retailers
+# Guidance for Third-Party Marketplace on AWS
+
+This repository has a CDK app to demonstrate how to establish a Third-Party Marketplace. The Third-Party Marketplace stack will use Lambda, Step Functions, DynamoDB, API Gateway and EventBridge to establish a backend for hosting Third-Party information. The Front-end stack, which calls the API Gateway established, presents a simple form that allows new Third-Party sellers to register. 
+
+
+## Table of Contents
+- [Introduction](#introduction)
+- [Pre-requisites](#pre-requisites)
+- [Deployment Steps](#deployment-steps)
+- [Deployment Validation](#deployment-validation)
+- [Running the Guidance](#running-the-guidance)
+  - [Registering New Suppliers to the Third Party Marketplace](#registering-new-suppliers-to-the-third-party-marketplace)
+- [Cleanup](#cleanup)
+- [Usage Note](#usage-note)
+- [Security](#security)
+- [License](#license)
+
+
+## Introduction
 
 Retailers want to offer a wide range of products to their customers but can't necessarily take on the cost of holding the inventory. For many, creating an online marketplace for thrid-party sellers addresses this problem and creates an additional revenue stream through listing fees. Customers, in turn, find more products they want and tend to spend more, creating a virtuous cycle that benefits the retailer, the third-party sellers, and the customers. 
 
-## Reference Architecture
+### Reference Architecture
 
 ![Reference Architecture Image](/assets/images/third-party-marketplace-RA.png)
 
@@ -65,13 +83,13 @@ cdk deploy FrontEndStack -c api-end-point=<API-GATEWAY-END-POINT>
 
 Capture the cloudfront end point displayed in the output
 
-
 ## Deployment Validation
 
 This repository has a CDK app with Python that generates two AWS stacks 1. ThirdPartyMarketplaceStack and 2. FrontEndStack which can be verified by visiting AWS CloudFormation Console. 
 
+## Running the Guidance
 
-## Registering new suppliers to the third party marketplace
+### Registering New Suppliers to the Third Party Marketplace
 
 1. Visit cloudfront end point
 
